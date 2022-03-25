@@ -3,4 +3,4 @@ project(udp)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(udpForLinux main.cpp)
+add_executable(udp main.cpp)
