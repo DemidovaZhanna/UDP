@@ -3,6 +3,9 @@
 
 int main()
 {
+    #if defined(_WIN32)
+        WSASession session;
+    #endif
     std::string IP = "127.0.0.1";
     int port_dst = 8888;
     UDPSocket socket_out;

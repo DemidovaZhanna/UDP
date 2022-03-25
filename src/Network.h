@@ -4,6 +4,8 @@
 #if defined(_WIN32)
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <system_error>
+#include <winsock2.h>
+
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -18,9 +20,9 @@
 #include <iostream>
 
 #if defined(_WIN32)
-#define ISVALIDSOCKET (s) ((s) != INVALID_SOCKET)
-#define CLOSESOCKET (s) closesocket(s)
-#define GETSOCKETERRNO () (WSAGetLastError())
+#define ISVALIDSOCKET(s) ((s) != INVALID_SOCKET)
+#define CLOSESOCKET(s) closesocket(s)
+#define GETSOCKETERRNO() (WSAGetLastError())
 #else
 #define SOCKET int
 #define ISVALIDSOCKET(s) ((s) >= 0)
@@ -34,7 +36,7 @@ const char *get_error_text ()
         static char message[256] = {0};
         FormatMessage(
             FORMAT_MESSAGE_FROM_SYSTEM|FORMAT_MESSAGE_IGNORE_INSERTS,
-            0, WSAGetLastError(), 0, message, 256, 0);
+            0, GETSOCKETERRNO(), 0, message, 256, 0);
         char *nl = strrchr(message, '\n');
         if (nl) *nl = 0;
         return message;
@@ -46,19 +48,19 @@ const char *get_error_text ()
 #if defined(_WIN32)
 class WSASession
 {
-  public:
+public:
     WSASession()
     {
-      int ret = WSAStartup(MAKEWORD(2, 2), &data);
-      if (ret != 0)
-        throw std::system_error(WSAGetLastError(), std::system_category(), "WSAStartup Failed");
+        int ret = WSAStartup(MAKEWORD(2, 2), &data);
+        if (ret != 0)
+            throw std::system_error(WSAGetLastError(), std::system_category(), "WSAStartup Failed");
     }
     ~WSASession()
     {
-      WSACleanup();
+        WSACleanup();
     }
 
-  private:
+private:
     WSAData data;
 };
 #endif
@@ -84,11 +86,11 @@ public:
         //add.sin_addr.s_addr = inet_pton(AF_INET, "127.0.0.1", address.c_str());
         add.sin_port = htons(port);
 
-        #if defined(_WIN32)
-            int ret = sendto(_sockfd_out, buffer, len, flags, reinterpret_cast<SOCKADDR *>(&add), sizeof(add));
-        #else
-            ssize_t ret = sendto(_sockfd_out, static_cast<const void *> (buffer), len, flags, reinterpret_cast<const sockaddr *>(&add), sizeof(add));
-        #endif
+#if defined(_WIN32)
+        int ret = sendto(_sockfd_out, buffer, len, flags, reinterpret_cast<SOCKADDR *>(&add), sizeof(add));
+#else
+        ssize_t ret = sendto(_sockfd_out, static_cast<const void *> (buffer), len, flags, reinterpret_cast<const sockaddr *>(&add), sizeof(add));
+#endif
 
         if (ret < 0)
             printf("Sendto failed: %d : %s\n", GETSOCKETERRNO(), get_error_text());
@@ -96,11 +98,11 @@ public:
 
     void sendTo (sockaddr_in& address, const char* buffer, int len, int flags = 0)
     {
-        #if defined(_WIN32)
-            int ret = sendto(_sockfd_out, buffer, len, flags, reinterpret_cast<SOCKADDR *>(&address), sizeof(address));
-        #else
-            ssize_t ret = sendto(_sockfd_out, static_cast<const void *> (buffer), len, flags, reinterpret_cast<const sockaddr *>(&address), sizeof(address));
-        #endif
+#if defined(_WIN32)
+        int ret = sendto(_sockfd_out, buffer, len, flags, reinterpret_cast<SOCKADDR *>(&address), sizeof(address));
+#else
+        ssize_t ret = sendto(_sockfd_out, static_cast<const void *> (buffer), len, flags, reinterpret_cast<const sockaddr *>(&address), sizeof(address));
+#endif
 
         if (ret < 0)
             printf("Sendto failed: %d : %s\n", GETSOCKETERRNO(), get_error_text());
@@ -133,12 +135,12 @@ public:
             sockaddr_in from;
             int size = sizeof(from);
 
-            #if defined(_WIN32)
-                int ret = recvfrom(_sockfd, buffer, len, flags, reinterpret_cast<SOCKADDR *>(&from), &size);
-            #else
-                ssize_t ret = recvfrom(_sockfd_in, static_cast<void *> (buffer), len, flags,
+#if defined(_WIN32)
+            int ret = recvfrom(_sockfd_in, buffer, len, flags, reinterpret_cast<SOCKADDR *>(&from), &size);
+#else
+            ssize_t ret = recvfrom(_sockfd_in, static_cast<void *> (buffer), len, flags,
                                        reinterpret_cast<sockaddr *>(&from), reinterpret_cast<socklen_t *>(&size));
-            #endif
+#endif
 
             if (ret < 0)
             {
@@ -181,3 +183,4 @@ private:
 };
 
 #endif //UDP_NETWORK_H
+
